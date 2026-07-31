@@ -61,7 +61,7 @@ def _reference_capacity_stock(
             ["year", "capacity_mw"],
         ]
         .groupby("year", as_index=True)["capacity_mw"]
-        .sum()
+        .sum(min_count=1)
         .sort_index()
     )
 
@@ -72,22 +72,23 @@ def _reference_first_year(
     categories: list[str],
     max_year: int,
 ) -> int:
-    """Return first reference-capacity year available for mapped categories."""
-    matching_years = reference_capacity_df.loc[
-        reference_capacity_df["country_id"].eq(country_id)
-        & reference_capacity_df["category"].isin(categories)
-        & reference_capacity_df["year"].le(max_year),
-        "year",
-    ]
+    """Return first year with reported reference-capacity stock."""
+    capacity_stock = _reference_capacity_stock(
+        reference_capacity_df=reference_capacity_df,
+        country_id=country_id,
+        categories=categories,
+        max_year=max_year,
+    )
 
-    if matching_years.empty:
+    reported_years = capacity_stock.loc[capacity_stock.notna()].index
+
+    if reported_years.empty:
         raise ValueError(
-            "No reference capacity years found for "
+            "No reported reference capacity years found for "
             f"{country_id=} and {categories=} up to {max_year=}."
         )
 
-    return int(matching_years.min())
-
+    return int(reported_years.min())
 
 def _initial_year_source_type(year: pd.Series) -> pd.Series:
     """Label whether year values were originally present or missing."""
