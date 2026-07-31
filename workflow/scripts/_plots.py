@@ -1,6 +1,6 @@
 """Plot functions used in one or more rules."""
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 
 import _schemas
 import _utils
@@ -244,43 +244,25 @@ def plot_capacity_aggregation(
 
 
 def get_colour_dict(
-    sources: Collection[str],
+    sources: Sequence[str],
     colormap: str,
     *,
     value_range: tuple[float, float] = (0.0, 1.0),
-) -> dict[str, str]:
-    """Return deterministic colours for a collection of source types."""
-    sorted_sources = sorted(sources)
+    reverse: bool = True,
+) -> dict[str, tuple[float, float, float, float]]:
+    """Return colours for source types in the given order."""
+    ordered_sources = list(sources)
 
-    if not sorted_sources:
+    if not ordered_sources:
         return {}
 
     cmap = Colormap(colormap).to_mpl()
-    values = np.linspace(value_range[0], value_range[1], len(sorted_sources))
+    values = np.linspace(value_range[0], value_range[1], len(ordered_sources))
+
+    if reverse:
+        values = values[::-1]
 
     return {
-        source: colour
-        for source, colour in zip(sorted_sources, cmap(values), strict=True)
+        source: tuple(colour)
+        for source, colour in zip(ordered_sources, cmap(values), strict=True)
     }
-
-
-def get_time_imputation_colours() -> dict[str, str]:
-    """Return colours for time-imputation source types."""
-    start_year_sources = _utils.date_source_types_for("start_year")
-    end_year_sources = _utils.date_source_types_for("end_year")
-
-    observed_sources = start_year_sources & end_year_sources
-    start_only_sources = start_year_sources - end_year_sources
-    end_only_sources = end_year_sources - start_year_sources
-
-    return (
-        get_colour_dict(
-            observed_sources, "colorbrewer:Greys", value_range=(0.3, 0.4)
-        )  # forces observed values to a light grey
-        | get_colour_dict(
-            start_only_sources, "colorbrewer:Purples", value_range=(0.1, 1)
-        )  # prevents anything to pale in the plot
-        | get_colour_dict(
-            end_only_sources, "colorbrewer:Reds", value_range=(0.1, 1)
-        )  # prevents anything to pale in the plot
-    )
